@@ -53,21 +53,21 @@ extern "C" {
 struct pms5003st {
     int ver;
     int err;
-    int pm1_0_std; //PM1.0 concentration in standard material
-    int pm2_5_std; //PM2.5 concentration in standard material
-    int pm10_std;  //PM10 concentration in standard material
-    int pm1_0_atm; //PM1.0 concentration in atmospheric environment
-    int pm2_5_atm; //PM2.5 concentration in atmospheric environment
-    int pm10_atm;  //PM10 concentration in atmospheric environment
+    int pm1_0_std; /* PM1.0 concentration in standard material */
+    int pm2_5_std; /* PM2.5 concentration in standard material */
+    int pm10_std;  /* PM10 concentration in standard material */
+    int pm1_0_atm; /* PM1.0 concentration in atmospheric environment */
+    int pm2_5_atm; /* PM2.5 concentration in atmospheric environment */
+    int pm10_atm;  /* PM10 concentration in atmospheric environment */
     int g_0_3um;
     int g_0_5um;
     int g_1_0um;
     int g_2_5um;
     int g_5_0um;
     int g_10um;
-    float hcho;        //mg/m3
-    float temperature; //C
-    float humidity;    //%
+    float hcho;        /* mg/m3 */
+    float temperature; /* C */
+    float humidity;    /* % */
 };
 
 extern PMS5003ST_API int pms5003st_read(int fd, struct pms5003st *p);
@@ -222,4 +222,4 @@ pms5003st_print(struct pms5003st *p) {
            p->hcho, p->temperature, p->humidity);
 }
 
-#endif // PMS5003ST_IMPLEMENTATION
+#endif /* PMS5003ST_IMPLEMENTATION */
