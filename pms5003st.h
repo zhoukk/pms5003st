@@ -89,6 +89,7 @@ int
 pms5003st_read(int fd, struct pms5003st *p) {
     int rc;
     char ch;
+    size_t i;
     unsigned short len;
     unsigned short chk;
     unsigned short check_sum = 0;
@@ -133,9 +134,9 @@ pms5003st_read(int fd, struct pms5003st *p) {
         rc = -1;
         goto e;
     }
-    for (size_t i = 0; i < sizeof(data) / sizeof(short); i++)
+    for (i = 0; i < sizeof(data) / sizeof(short); i++)
         data[i] = __bswap_16(data[i]);
-    for (size_t i = 0; i < sizeof(data); i++)
+    for (i = 0; i < sizeof(data); i++)
         check_sum += ((unsigned char *)data)[i];
     if (2 != read(fd, &chk, 2)) {
         fprintf(stderr, "[PMS5003ST] ERROR READ:(%d) %s\n", errno, strerror(errno));
