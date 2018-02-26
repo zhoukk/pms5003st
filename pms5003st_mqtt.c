@@ -62,7 +62,7 @@ __update(aeEventLoop *el, long long id, void *privdata) {
     }
     // pms5003st_print(&p);
     len = pms5003st_json(&p, str, 1024);
-    printf("%s\n", str);
+    // printf("%s\n", str);
     rc = libmqtt__publish(pm->mqtt, 0, "libmqtt_pms5003st", 0, 0, str, len);
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stderr, "%s\n", libmqtt__strerror(rc));
@@ -82,6 +82,9 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_connack retur
     }
 
     pm = (struct pms5003st_mqtt *)ud;
+    if (pm->fd) {
+        close(pm->fd);
+    }
     pm->fd = open(pm->devpath, O_RDWR | O_NOCTTY | O_NDELAY);
     if (pm->fd < 0) {
         fprintf(stderr, "fatal: open(): %s: %s\n", pm->devpath, strerror(errno));
@@ -112,8 +115,23 @@ __log(void *ud, const char *str) {
 
 static void
 __disconnect(aeEventLoop *el, struct ae_io *io) {
+    struct libmqtt *mqtt;
+    int rc;
+
+    mqtt = io->mqtt;
+
+    fprintf(stderr, "disconnected: %s\n", strerror(errno));
     ae_io__close(el, io);
-    aeStop(el);
+    io = ae_io__connect(el, mqtt, "broker.hivemq.com", 1883, __disconnect);
+    if (!io) {
+        fprintf(stderr, "ae_io__connect: %s\n", strerror(errno));
+        return;
+    }
+    rc = libmqtt__connect(mqtt, io, ae_io__write);
+    if (rc != LIBMQTT_SUCCESS) {
+        fprintf(stderr, "%s\n", libmqtt__strerror(rc));
+        return;
+    }
 }
 
 
@@ -127,7 +145,7 @@ main(int argc, char *argv[]) {
     };
     aeEventLoop *el;
     struct ae_io *io;
-    struct pms5003st_mqtt pm = {0, "", 0, 0};
+    struct pms5003st_mqtt pm = {-1, "", 0, 0};
 
     if (argc < 2) {
         printf("usage: %s devpath\n", argv[0]);
@@ -158,5 +176,8 @@ main(int argc, char *argv[]) {
     aeMain(el);
     aeDeleteEventLoop(el);
     libmqtt__destroy(mqtt);
+    if (pm.fd != -1) {
+        close(pm.fd);
+    }
     return 0;
 }
