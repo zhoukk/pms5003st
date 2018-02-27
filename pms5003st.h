@@ -192,7 +192,7 @@ pms5003st_json(struct pms5003st *p, char *str, size_t len) {
         "\"g_10um\":%d,"
         "\"hcho\":%.1f,"
         "\"temperature\":%.1f,"
-        "\"humidity\":%.1f,"
+        "\"humidity\":%.1f"
         "}", p->ver, p->err,
         p->pm1_0_atm, p->pm2_5_atm, p->pm10_atm, p->pm1_0_std, p->pm2_5_std, p->pm10_std,
         p->g_0_3um, p->g_0_5um, p->g_1_0um, p->g_2_5um, p->g_5_0um, p->g_10um,

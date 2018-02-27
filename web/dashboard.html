@@ -1,0 +1,112 @@
+<html>
+
+<head>
+  <title>DASHBOARD OF PMS5003ST OVER MQTT</title>
+</head>
+
+<body>
+  <div id="gauge_pm2_5" style="width: 600px;height:400px;"></div>
+  <div id="liner_pm2_5" style="width: 600px;height:400px;"></div>
+  <script src="mqtt.min.js"></script>
+  <script src="echarts.min.js"></script>
+  <script>
+    var client = mqtt.connect("ws://broker.mqttdashboard.com:8000/mqtt")
+    client.subscribe("libmqtt_pms5003st")
+
+    const gauge_pm2_5 = echarts.init(document.getElementById('gauge_pm2_5'));
+    const liner_pm2_5 = echarts.init(document.getElementById('liner_pm2_5'));
+
+    const gauge_option = {
+      tooltip: {
+        formatter: "{a} : {c}"
+      },
+      toolbox: {
+        feature: {
+          restore: {},
+          saveAsImage: {}
+        }
+      },
+      series: [
+        {
+          name: 'PM2.5',
+          type: 'gauge',
+          max: 300,
+          axisLine: {
+            lineStyle: {
+              color: [
+                [0.116, '#1e0000'],
+                [0.25, '#400000'],
+                [0.383, '#620000'],
+                [0.5, '#7f0000'],
+                [0.833, '#d40000'],
+                [1, '#ff0000']
+              ],
+            }
+          },
+          detail: { formatter: '{value}' },
+          data: [{ value: 0, name: 'PM2.5' }]
+        }
+      ]
+    };
+
+    const data = []
+    const liner_option = {
+      title: {
+        text: 'PM2.5曲线'
+      },
+      tooltip: {
+        trigger: 'axis',
+        formatter: function (params) {
+          params = params[0];
+          var date = new Date(params.name)
+          return date.getFullYear() + '/' + (date.getMonth() + 1) + '/' + date.getDate() + ' ' + date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds() + '  ' + params.value[1];
+        },
+        axisPointer: {
+          animation: false
+        }
+      },
+      xAxis: {
+        type: 'time',
+        splitLine: {
+          show: false
+        }
+      },
+      yAxis: {
+        type: 'value',
+        boundaryGap: [0, '100%'],
+        splitLine: {
+          show: false
+        }
+      },
+      series: [{
+        name: '模拟数据',
+        type: 'line',
+        showSymbol: false,
+        hoverAnimation: false,
+        data: data
+      }]
+    };
+
+    gauge_pm2_5.setOption(gauge_option, true);
+    liner_pm2_5.setOption(liner_option, true);
+    client.on("message", function (topic, payload) {
+      const p = JSON.parse(String(payload))
+      console.log(p)
+      gauge_option.series[0].data[0].value = p.pm2_5_atm;
+      const now = new Date()
+      data.push({
+        name: now.toString(),
+        value: [
+          now.getTime(), p.pm2_5_atm]
+      })
+      gauge_pm2_5.setOption(gauge_option, true);
+      liner_pm2_5.setOption({
+        series: [{
+          data: data
+        }]
+      });
+    })
+  </script>
+</body>
+
+</html>
