@@ -190,7 +190,7 @@ pms5003st_json(struct pms5003st *p, char *str, size_t len) {
         "\"g_2_5um\":%d,"
         "\"g_5_0um\":%d,"
         "\"g_10um\":%d,"
-        "\"hcho\":%.1f,"
+        "\"hcho\":%.3f,"
         "\"temperature\":%.1f,"
         "\"humidity\":%.1f"
         "}", p->ver, p->err,
