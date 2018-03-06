@@ -215,7 +215,7 @@ pms5003st_print(struct pms5003st *p) {
            ">2.5um     : %u\n"
            ">5.0um     : %u\n"
            ">10um      : %u\n"
-           "HCHO       : %.1f\n"
+           "HCHO       : %.3f\n"
            "TEMPERATURE: %.1f\n"
            "HUMIDITY   : %.1f%%\n"
            "\n", p->pm1_0_atm, p->pm2_5_atm, p->pm10_atm, p->pm1_0_std, p->pm2_5_std, p->pm10_std,
