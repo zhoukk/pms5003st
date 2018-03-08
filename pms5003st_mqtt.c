@@ -181,7 +181,7 @@ main(int argc, char *argv[]) {
     pm.el = el;
 
     rc = libmqtt__create(&mqtt, "libmqtt_pms5003st", &pm, &cb);
-    if (!rc) rc = libmqtt__will(mqtt, 1, 2, "libmqtt_pms5003st_state", "exit", 4);
+    if (!rc) libmqtt__will(mqtt, 1, 2, "libmqtt_pms5003st_state", "exit", 4);
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stderr, "%s\n", libmqtt__strerror(rc));
         return 0;
