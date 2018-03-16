@@ -339,41 +339,29 @@ pms5003st_read(int fd, struct pms5003st *p) {
     size_t i;
     unsigned short len;
     unsigned short chk;
-    unsigned short check_sum;
     unsigned short data[17];
 
 a:
-    check_sum = 0;
-
     if (1 != _read(fd, &ch, 1))
         goto a;
     if (ch != 0x42)
         goto a;
-    check_sum += ch;
     if (1 != _read(fd, &ch, 1))
         goto a;
     if (ch != 0x4d)
         goto a;
-    check_sum += ch;
     if (2 != _read(fd, (char *)&len, 2))
         goto a;
     len = __bswap_16(len);
     if (len != 2 * 17 + 2)
         goto a;
-    check_sum += (unsigned char)len;
     if (34 != _read(fd, (char *)data, 34))
         goto a;
     for (i = 0; i < 17; i++)
         data[i] = __bswap_16(data[i]);
-    for (i = 0; i < 34; i++)
-        check_sum += ((unsigned char *)data)[i];
     if (2 != _read(fd, (char *)&chk, 2))
         goto a;
     chk = __bswap_16(chk);
-    if (check_sum != chk) {
-        fprintf(stderr, "[PMS5003ST] ERROR CHK:%d\n", chk);
-        goto a;
-    }
 
     p->ver = data[16] >> 8;
     p->err = data[16] & 0xff;
