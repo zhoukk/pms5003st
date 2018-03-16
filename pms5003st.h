@@ -87,7 +87,6 @@ extern PMS5003ST_API void pms5003st_print(struct pms5003st *p);
 
 int
 pms5003st_read(int fd, struct pms5003st *p) {
-    int rc;
     char ch;
     size_t i;
     unsigned short len;
@@ -95,59 +94,43 @@ pms5003st_read(int fd, struct pms5003st *p) {
     unsigned short check_sum = 0;
     unsigned short data[17];
 
+a:
     if (1 != read(fd, &ch, 1)) {
-        fprintf(stderr, "[PMS5003ST] ERROR READ:(%d) %s\n", errno, strerror(errno));
-        rc = -1;
-        goto e;
+        goto a;
     }
     if (ch != 0x42) {
-        fprintf(stderr, "[PMS5003ST] NOT 0x42\n");
-        rc = -2;
-        goto e;
+        goto a;
     }
     check_sum += ch;
     if (1 != read(fd, &ch, 1)) {
-        fprintf(stderr, "[PMS5003ST] ERROR READ:(%d) %s\n", errno, strerror(errno));
-        rc = -1;
-        goto e;
+        goto a;
     }
     if (ch != 0x4d) {
-        fprintf(stderr, "[PMS5003ST] NOT 0x4d\n");
-        rc = -3;
-        goto e;
+        goto a;
     }
     check_sum += ch;
     if (2 != read(fd, &len, 2)) {
-        fprintf(stderr, "[PMS5003ST] ERROR READ:(%d) %s\n", errno, strerror(errno));
-        rc = -1;
-        goto e;
+        goto a;
     }
     len = __bswap_16(len);
     if (len != 2 * 17 + 2) {
-        fprintf(stderr, "[PMS5003ST] ERROR LEN:%d\n", len);
-        rc = -4;
-        goto e;
+        goto a;
     }
     check_sum += (unsigned char)len;
     if (sizeof(data) != read(fd, &data, sizeof(data))) {
-        fprintf(stderr, "[PMS5003ST] ERROR READ:(%d) %s\n", errno, strerror(errno));
-        rc = -1;
-        goto e;
+        goto a;
     }
     for (i = 0; i < sizeof(data) / sizeof(short); i++)
         data[i] = __bswap_16(data[i]);
     for (i = 0; i < sizeof(data); i++)
         check_sum += ((unsigned char *)data)[i];
     if (2 != read(fd, &chk, 2)) {
-        fprintf(stderr, "[PMS5003ST] ERROR READ:(%d) %s\n", errno, strerror(errno));
-        rc = -1;
-        goto e;
+        goto a;
     }
     chk = __bswap_16(chk);
     if (check_sum != chk) {
         fprintf(stderr, "[PMS5003ST] ERROR CHK:%d\n", chk);
-        rc = -5;
-        goto e;
+        return -1;
     }
 
     p->ver = data[16] >> 8;
@@ -168,9 +151,6 @@ pms5003st_read(int fd, struct pms5003st *p) {
     p->temperature = data[13] / 10.0f;
     p->humidity = data[14] / 10.0f;
     return 0;
-
-e:
-    return rc;
 }
 
 int

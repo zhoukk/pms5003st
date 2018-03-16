@@ -9,10 +9,14 @@
 struct pms5003st_mqtt {
     int fd;
     char devpath[1024];
+    char host[1024];
+    int port;
     struct libmqtt *mqtt;
     aeEventLoop *el;
     int connected;
 };
+
+static struct pms5003st_mqtt P;
 
 static void
 set_interface_attribs(int fd, int speed) {
@@ -59,10 +63,10 @@ __update(aeEventLoop *el, long long id, void *privdata) {
     pm = (struct pms5003st_mqtt *)privdata;
 
     if (0 == pm->connected) {
-        return 1000;
+        return 100;
     }
     if (0 != pms5003st_read(pm->fd, &p)) {
-        return 1000;
+        return 100;
     }
     len = pms5003st_json(&p, str, 1024);
     rc = libmqtt__publish(pm->mqtt, 0, "libmqtt_pms5003st", 0, 0, str, len);
@@ -70,7 +74,7 @@ __update(aeEventLoop *el, long long id, void *privdata) {
         fprintf(stderr, "%s\n", libmqtt__strerror(rc));
     }
 
-    return 1000;
+    return 100;
 }
 
 static void __disconnect(aeEventLoop *el, struct ae_io *io);
@@ -80,7 +84,7 @@ __connect(aeEventLoop *el, struct libmqtt *mqtt) {
     struct ae_io *io;
     int rc;
 
-    io = ae_io__connect(el, mqtt, "broker.hivemq.com", 1883, __disconnect);
+    io = ae_io__connect(el, mqtt, P.host, P.port, __disconnect);
     if (!io) {
         fprintf(stderr, "ae_io__connect: %s\n", strerror(errno));
         return -1;
@@ -104,7 +108,7 @@ __retry(aeEventLoop *el, long long id, void *privdata) {
         return 1000;
     }
 
-    return 0;
+    return AE_NOMORE;
 }
 
 static void
@@ -127,7 +131,7 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_connack retur
         }
         set_interface_attribs(pm->fd, B9600);
         pm->connected = 1;
-        if (AE_ERR == aeCreateTimeEvent(pm->el, 1000, __update, pm, 0)) {
+        if (AE_ERR == aeCreateTimeEvent(pm->el, 100, __update, pm, 0)) {
             fprintf(stderr, "aeCreateTimeEvent: error\n");
             libmqtt__disconnect(mqtt);
             return;
@@ -169,13 +173,18 @@ main(int argc, char *argv[]) {
         .puback = __puback,
     };
     aeEventLoop *el;
-    struct pms5003st_mqtt pm = {-1, "", 0, 0, 0};
+    struct pms5003st_mqtt pm = {-1, "", "", 1883, 0, 0, 0};
 
-    if (argc < 2) {
-        printf("usage: %s devpath\n", argv[0]);
+    if (argc < 3) {
+        printf("usage: %s devpath host port\n", argv[0]);
         return 0;
     }
     strcpy(pm.devpath, argv[1]);
+    strcpy(pm.host, argv[2]);
+
+    if (argc > 3) {
+        pm.port = atoi(argv[3]);
+    }
 
     el = aeCreateEventLoop(128);
     pm.el = el;
@@ -187,6 +196,8 @@ main(int argc, char *argv[]) {
         return 0;
     }    
     pm.mqtt = mqtt;
+
+    memcpy(&P, &pm, sizeof pm);
 
     if (__connect(el, mqtt)) {
         if (AE_ERR == aeCreateTimeEvent(el, 1000, __retry, mqtt, 0)) {
