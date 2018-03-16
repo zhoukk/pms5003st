@@ -94,38 +94,37 @@ pms5003st_read(int fd, struct pms5003st *p) {
     unsigned short check_sum = 0;
     unsigned short data[17];
 
-a:
     if (1 != read(fd, &ch, 1)) {
-        goto a;
+        return -1;
     }
     if (ch != 0x42) {
-        goto a;
+        return -1;
     }
     check_sum += ch;
     if (1 != read(fd, &ch, 1)) {
-        goto a;
+        return -1;
     }
     if (ch != 0x4d) {
-        goto a;
+        return -1;
     }
     check_sum += ch;
     if (2 != read(fd, &len, 2)) {
-        goto a;
+        return -1;
     }
     len = __bswap_16(len);
     if (len != 2 * 17 + 2) {
-        goto a;
+        return -1;
     }
     check_sum += (unsigned char)len;
     if (sizeof(data) != read(fd, &data, sizeof(data))) {
-        goto a;
+        return -1;
     }
     for (i = 0; i < sizeof(data) / sizeof(short); i++)
         data[i] = __bswap_16(data[i]);
     for (i = 0; i < sizeof(data); i++)
         check_sum += ((unsigned char *)data)[i];
     if (2 != read(fd, &chk, 2)) {
-        goto a;
+        return -1;
     }
     chk = __bswap_16(chk);
     if (check_sum != chk) {
