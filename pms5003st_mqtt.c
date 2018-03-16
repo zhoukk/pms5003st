@@ -3,9 +3,6 @@
 #define PMS5003ST_IMPLEMENTATION
 #include "pms5003st.h"
 
-#include <termios.h>
-#include <fcntl.h>
-
 struct pms5003st_mqtt {
     int fd;
     char devpath[1024];
@@ -17,38 +14,6 @@ struct pms5003st_mqtt {
 };
 
 static struct pms5003st_mqtt P;
-
-static void
-set_interface_attribs(int fd, int speed) {
-    struct termios tty;
-
-    if (tcgetattr(fd, &tty) < 0) {
-        fprintf(stderr, "fatal: tcgetattr(): %s\n", strerror(errno));
-        exit(-1);
-    }
-
-    cfsetospeed(&tty, (speed_t)speed);
-    cfsetispeed(&tty, (speed_t)speed);
-
-    tty.c_cflag |= (CLOCAL | CREAD);
-    tty.c_cflag &= ~CSIZE;
-    tty.c_cflag |= CS8;
-    tty.c_cflag &= ~PARENB;
-    tty.c_cflag &= ~CSTOPB;
-    tty.c_cflag &= ~CRTSCTS;
-
-    tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-    tty.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-    tty.c_oflag &= ~OPOST;
-
-    tty.c_cc[VMIN] = 1;
-    tty.c_cc[VTIME] = 1;
-
-    if (tcsetattr(fd, TCSANOW, &tty) != 0) {
-        fprintf(stderr, "fatal: tcsetattr(): %s\n", strerror(errno));
-        exit(-1);
-    }
-}
 
 static int
 __update(aeEventLoop *el, long long id, void *privdata) {
@@ -123,13 +88,13 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_connack retur
 
     pm = (struct pms5003st_mqtt *)ud;
     if (-1 == pm->fd) {
-        pm->fd = open(pm->devpath, O_RDWR | O_NOCTTY | O_NDELAY);
+        pm->fd = uart_open(pm->devpath);
         if (pm->fd < 0) {
             fprintf(stderr, "fatal: open(): %s: %s\n", pm->devpath, strerror(errno));
             libmqtt__disconnect(mqtt);
             return;
         }
-        set_interface_attribs(pm->fd, B9600);
+        uart_set(pm->fd, 9600, 0, 8, 'N', 1);
         pm->connected = 1;
         if (AE_ERR == aeCreateTimeEvent(pm->el, 100, __update, pm, 0)) {
             fprintf(stderr, "aeCreateTimeEvent: error\n");
@@ -210,7 +175,7 @@ main(int argc, char *argv[]) {
     aeDeleteEventLoop(el);
     libmqtt__destroy(mqtt);
     if (pm.fd != -1) {
-        close(pm.fd);
+        uart_close(pm.fd);
     }
     return 0;
 }
