@@ -1,3 +1,4 @@
+#define LIBMQTT_IMPLEMENTATION
 #include "ae_io.h"
 
 #define PMS5003ST_IMPLEMENTATION
