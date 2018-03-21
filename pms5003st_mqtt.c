@@ -180,6 +180,7 @@ __pms_connect(aeEventLoop *el, struct libmqtt *mqtt) {
         fprintf(stderr, "ae_io__connect: %s\n", strerror(errno));
         return -1;
     }
+    io->mqtt = mqtt;
     rc = libmqtt__connect(mqtt, io, __write);
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stderr, "%s\n", libmqtt__strerror(rc));
@@ -267,7 +268,7 @@ main(int argc, char *argv[]) {
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stderr, "%s\n", libmqtt__strerror(rc));
         return 0;
-    }    
+    }
     pm.mqtt = mqtt;
 
     memcpy(&P, &pm, sizeof pm);
