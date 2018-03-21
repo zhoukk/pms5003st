@@ -1,8 +1,17 @@
 #define LIBMQTT_IMPLEMENTATION
-#include "ae_io.h"
+#include "libmqtt.h"
+
+#include "lib/ae.h"
+#include "lib/anet.h"
 
 #define PMS5003ST_IMPLEMENTATION
 #include "pms5003st.h"
+
+struct ae_io {
+    int fd;
+    long long timer_id;
+    struct libmqtt *mqtt;
+};
 
 struct pms5003st_mqtt {
     int fd;
@@ -16,8 +25,126 @@ struct pms5003st_mqtt {
 
 static struct pms5003st_mqtt P;
 
+static int __pms_connect(aeEventLoop *el, struct libmqtt *mqtt);
+static int __pms_retry(aeEventLoop *el, long long id, void *privdata);
+
+static void
+__close(aeEventLoop *el, struct ae_io *io) {
+    if (AE_ERR != io->fd) {
+        aeDeleteFileEvent(el, io->fd, AE_READABLE);
+        close(io->fd);
+    }
+    if (AE_ERR != io->timer_id)
+        aeDeleteTimeEvent(el, io->timer_id);
+    free(io);
+}
+
+static void
+__disconnect(aeEventLoop *el, struct ae_io *io) {
+    struct libmqtt *mqtt;
+
+    mqtt = io->mqtt;
+
+    fprintf(stderr, "disconnected: %s\n", strerror(errno));
+    __close(el, io);
+
+    if (__pms_connect(el, mqtt)) {
+        if (AE_ERR == aeCreateTimeEvent(el, 1000, __pms_retry, mqtt, 0)) {
+            fprintf(stderr, "aeCreateTimeEvent: error\n");
+            return;
+        }
+    }
+}
+
+static void
+__read(aeEventLoop *el, int fd, void *privdata, int mask) {
+    struct ae_io *io;
+    int nread;
+    char buff[4096];
+    int rc;
+    (void)mask;
+
+    io = (struct ae_io *)privdata;
+    nread = read(fd, buff, sizeof(buff));
+    if (nread == -1 && errno == EAGAIN) {
+        return;
+    }
+    rc = LIBMQTT_SUCCESS;
+    if (nread <= 0 || LIBMQTT_SUCCESS != (rc = libmqtt__read(io->mqtt, buff, nread))) {
+        if (rc != LIBMQTT_SUCCESS)
+            fprintf(stderr, "libmqtt__read: %s\n", libmqtt__strerror(rc));
+        __disconnect(el, io);
+    }
+}
+
+static int
+__write(void *p, const char *data, int size) {
+    struct ae_io *io;
+
+    io = (struct ae_io *)p;
+    return write(io->fd, data, size);
+}
+
 static int
 __update(aeEventLoop *el, long long id, void *privdata) {
+    struct ae_io *io;
+    int rc;
+    (void)el;
+    (void)id;
+
+    io = (struct ae_io *)privdata;
+    if (LIBMQTT_SUCCESS != (rc = libmqtt__update(io->mqtt))) {
+        fprintf(stderr, "libmqtt__update: %s\n", libmqtt__strerror(rc));
+        return AE_NOMORE;
+    }
+    return 1000;
+}
+
+
+static struct ae_io *
+__connect(aeEventLoop *el, char *host, int port) {
+    struct ae_io *io;
+    int fd;
+    long long timer_id;
+    char err[ANET_ERR_LEN];
+
+    fd = anetTcpConnect(err, host, port);
+    if (ANET_ERR == fd) {
+        fprintf(stderr, "anetTcpConnect: %s\n", err);
+        goto e1;
+    }
+    anetNonBlock(0, fd);
+    anetEnableTcpNoDelay(0, fd);
+    anetTcpKeepAlive(0, fd);
+
+    io = (struct ae_io *)malloc(sizeof *io);
+    memset(io, 0, sizeof *io);
+
+    if (AE_ERR == aeCreateFileEvent(el, fd, AE_READABLE, __read, io)) {
+        fprintf(stderr, "aeCreateFileEvent: error\n");
+        goto e2;
+    }
+
+    timer_id = aeCreateTimeEvent(el, 1000, __update, io, 0);
+    if (AE_ERR == timer_id) {
+        fprintf(stderr, "aeCreateTimeEvent: error\n");
+        goto e3;
+    }
+
+    io->fd = fd;
+    io->timer_id = timer_id;
+    return io;
+
+e3:
+    aeDeleteFileEvent(el, fd, AE_READABLE);
+e2:
+    close(fd);
+e1:
+    return 0;
+}
+
+static int
+__pms_update(aeEventLoop *el, long long id, void *privdata) {
     int rc;
     struct pms5003st_mqtt *pm;
     struct pms5003st p;
@@ -43,34 +170,32 @@ __update(aeEventLoop *el, long long id, void *privdata) {
     return 100;
 }
 
-static void __disconnect(aeEventLoop *el, struct ae_io *io);
-
 static int
-__connect(aeEventLoop *el, struct libmqtt *mqtt) {
+__pms_connect(aeEventLoop *el, struct libmqtt *mqtt) {
     struct ae_io *io;
     int rc;
 
-    io = ae_io__connect(el, mqtt, P.host, P.port, __disconnect);
+    io = __connect(el, P.host, P.port);
     if (!io) {
         fprintf(stderr, "ae_io__connect: %s\n", strerror(errno));
         return -1;
     }
-    rc = libmqtt__connect(mqtt, io, ae_io__write);
+    rc = libmqtt__connect(mqtt, io, __write);
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stderr, "%s\n", libmqtt__strerror(rc));
-        ae_io__close(el, io);
+        __close(el, io);
     }
     return 0;
 }
 
 static int
-__retry(aeEventLoop *el, long long id, void *privdata) {
+__pms_retry(aeEventLoop *el, long long id, void *privdata) {
     struct libmqtt *mqtt;
     (void)id;
 
     mqtt = (struct libmqtt *)privdata;
 
-    if (__connect(el, mqtt)) {
+    if (__pms_connect(el, mqtt)) {
         return 1000;
     }
 
@@ -97,7 +222,7 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_connack retur
         }
         uart_set(pm->fd, 9600, 0, 8, 'N', 1);
         pm->connected = 1;
-        if (AE_ERR == aeCreateTimeEvent(pm->el, 100, __update, pm, 0)) {
+        if (AE_ERR == aeCreateTimeEvent(pm->el, 100, __pms_update, pm, 0)) {
             fprintf(stderr, "aeCreateTimeEvent: error\n");
             libmqtt__disconnect(mqtt);
             return;
@@ -111,24 +236,6 @@ __puback(struct libmqtt *mqtt, void *ud, uint16_t id) {
     (void)ud;
     printf("%u\n", id);
 }
-
-static void
-__disconnect(aeEventLoop *el, struct ae_io *io) {
-    struct libmqtt *mqtt;
-
-    mqtt = io->mqtt;
-
-    fprintf(stderr, "disconnected: %s\n", strerror(errno));
-    ae_io__close(el, io);
-
-    if (__connect(el, mqtt)) {
-        if (AE_ERR == aeCreateTimeEvent(el, 1000, __retry, mqtt, 0)) {
-            fprintf(stderr, "aeCreateTimeEvent: error\n");
-            return;
-        }
-    }
-}
-
 
 int
 main(int argc, char *argv[]) {
@@ -165,8 +272,8 @@ main(int argc, char *argv[]) {
 
     memcpy(&P, &pm, sizeof pm);
 
-    if (__connect(el, mqtt)) {
-        if (AE_ERR == aeCreateTimeEvent(el, 1000, __retry, mqtt, 0)) {
+    if (__pms_connect(el, mqtt)) {
+        if (AE_ERR == aeCreateTimeEvent(el, 1000, __pms_retry, mqtt, 0)) {
             fprintf(stderr, "aeCreateTimeEvent: error\n");
             return 0;
         }
