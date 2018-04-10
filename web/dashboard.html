@@ -10,7 +10,7 @@
   <script src="mqtt.min.js"></script>
   <script src="echarts.min.js"></script>
   <script>
-    var client = mqtt.connect("ws://broker.mqttdashboard.com:8000/mqtt")
+    var client = mqtt.connect("ws://zhoukk.com:8083/mqtt")
     client.subscribe("libmqtt_pms5003st")
 
     const gauge_pm2_5 = echarts.init(document.getElementById('gauge_pm2_5'));
