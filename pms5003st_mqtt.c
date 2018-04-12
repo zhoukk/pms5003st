@@ -162,7 +162,7 @@ __pms_update(aeEventLoop *el, long long id, void *privdata) {
         return 100;
     }
     len = pms5003st_json(&p, str, 1024);
-    rc = libmqtt__publish(pm->mqtt, 0, "libmqtt_pms5003st", 0, 0, str, len);
+    rc = libmqtt__publish(pm->mqtt, 0, 0, 0, "libmqtt_pms5003st", str, len);
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stdout, "%s\n", libmqtt__strerror(rc));
     }
