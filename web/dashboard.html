@@ -11,7 +11,7 @@
   <script src="mqtt.min.js"></script>
   <script src="echarts.min.js"></script>
   <script>
-    var client = mqtt.connect("ws://218.244.150.89:8083/mqtt")
+    var client = mqtt.connect("ws://zhoukk.com:8083/mqtt")
     client.subscribe("libmqtt_pms5003st")
 
     const gauge_temperature = echarts.init(document.getElementById('gauge_temperature'));
@@ -33,17 +33,6 @@
           name: 'TEMPERATURE',
           type: 'gauge',
           max: 50,
-          axisLine: {
-            lineStyle: {
-              color: [
-                [0.2, '#400000'],
-                [0.4, '#620000'],
-                [0.6, '#7f0000'],
-                [0.8, '#d40000'],
-                [1, '#ff0000']
-              ],
-            }
-          },
           detail: { formatter: '{value}' },
           data: [{ value: 0, name: 'TEMPERATURE' }]
         }
