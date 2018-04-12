@@ -183,7 +183,6 @@ uart_can_read(int fd, int timeout) {
 int
 uart_set(int fd, int baude, int c_flow, int bits, char parity, int stop) {
     struct termios options;
-    int CMSPAR = 0;
 
     if (tcgetattr(fd, &options) < 0) {
         return -1;
@@ -243,6 +242,10 @@ uart_set(int fd, int baude, int c_flow, int bits, char parity, int stop) {
     default:
         return -1;
     }
+
+#ifndef CMSPAR
+#define CMSPAR 0
+#endif
 
     options.c_iflag &= ~(INPCK | ISTRIP);
     switch (parity) {
