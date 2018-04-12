@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
     for (;;) {
         struct pms5003st p;
 
-        sleep(1);
         if (0 != pms5003st_read(fd, &p)) {
             continue;
         }
