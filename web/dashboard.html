@@ -5,6 +5,7 @@
 </head>
 
 <body>
+  <div id="gauge_temperature" style="width: 600px;height:400px;"></div>
   <div id="gauge_pm2_5" style="width: 600px;height:400px;"></div>
   <div id="liner_pm2_5" style="width: 600px;height:400px;"></div>
   <script src="mqtt.min.js"></script>
@@ -13,8 +14,41 @@
     var client = mqtt.connect("ws://218.244.150.89:8083/mqtt")
     client.subscribe("libmqtt_pms5003st")
 
+    const gauge_temperature = echarts.init(document.getElementById('gauge_temperature'));
     const gauge_pm2_5 = echarts.init(document.getElementById('gauge_pm2_5'));
     const liner_pm2_5 = echarts.init(document.getElementById('liner_pm2_5'));
+
+    const gauge_temperature_option = {
+      tooltip: {
+        formatter: "{a} : {c}"
+      },
+      toolbox: {
+        feature: {
+          restore: {},
+          saveAsImage: {}
+        }
+      },
+      series: [
+        {
+          name: 'TEMPERATURE',
+          type: 'gauge',
+          max: 50,
+          axisLine: {
+            lineStyle: {
+              color: [
+                [0.2, '#400000'],
+                [0.4, '#620000'],
+                [0.6, '#7f0000'],
+                [0.8, '#d40000'],
+                [1, '#ff0000']
+              ],
+            }
+          },
+          detail: { formatter: '{value}' },
+          data: [{ value: 0, name: 'TEMPERATURE' }]
+        }
+      ]
+    };
 
     const gauge_option = {
       tooltip: {
@@ -52,7 +86,7 @@
     const data = []
     const liner_option = {
       title: {
-        text: 'PM2.5曲线'
+        text: 'PM2.5'
       },
       tooltip: {
         trigger: 'axis',
@@ -87,11 +121,13 @@
       }]
     };
 
+    gauge_temperature.setOption(gauge_temperature_option, true);
     gauge_pm2_5.setOption(gauge_option, true);
     liner_pm2_5.setOption(liner_option, true);
     client.on("message", function (topic, payload) {
       const p = JSON.parse(String(payload))
       console.log(p)
+      gauge_temperature_option.series[0].data[0].value = p.temperature;
       gauge_option.series[0].data[0].value = p.pm2_5_atm;
       const now = new Date()
       data.push({
@@ -99,6 +135,7 @@
         value: [
           now.getTime(), p.pm2_5_atm]
       })
+      gauge_temperature.setOption(gauge_temperature_option, true);
       gauge_pm2_5.setOption(gauge_option, true);
       liner_pm2_5.setOption({
         series: [{
