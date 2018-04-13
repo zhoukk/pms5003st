@@ -312,6 +312,7 @@ pms5003st_read(int fd, struct pms5003st *p) {
     size_t i;
     unsigned short len;
     unsigned short chk;
+    unsigned short tmp;
     unsigned short data[17];
 
 a:
@@ -328,13 +329,18 @@ a:
     len = __bswap_16(len);
     if (len != 2 * 17 + 2)
         goto a;
+    tmp = 0x42 + 0x4d + (len >> 1) + (len & 0x0f);
     if (34 != _read(fd, (char *)data, 34))
         goto a;
-    for (i = 0; i < 17; i++)
+    for (i = 0; i < 17; i++) {
         data[i] = __bswap_16(data[i]);
+        tmp += (data[i] >> 1) + (data[i] & 0x0f);
+    }
     if (2 != _read(fd, (char *)&chk, 2))
         goto a;
     chk = __bswap_16(chk);
+    if (chk != tmp)
+        goto a;
 
     p->ver = data[16] >> 8;
     p->err = data[16] & 0xff;
