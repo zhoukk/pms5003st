@@ -339,8 +339,9 @@ a:
     if (2 != _read(fd, (char *)&chk, 2))
         goto a;
     chk = __bswap_16(chk);
-    if (chk != tmp)
-        goto a;
+    if (chk != tmp) {
+        fprintf(stderr, "chk: %u, tmp: %u\n", chk, tmp);
+    }
 
     p->ver = data[16] >> 8;
     p->err = data[16] & 0xff;
