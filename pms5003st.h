@@ -329,22 +329,21 @@ a:
     len = __bswap_16(len);
     if (len != 2 * 17 + 2)
         goto a;
-    tmp = 0x42 + 0x4d + (len >> 1) + (len & 0x0f);
+    tmp = 0x42 + 0x4d + (unsigned char)((len & 0xff00) >> 8) + (unsigned char)(len & 0x00ff);
     if (34 != _read(fd, (char *)data, 34))
         goto a;
     for (i = 0; i < 17; i++) {
         data[i] = __bswap_16(data[i]);
-        tmp += (data[i] >> 1) + (data[i] & 0x0f);
+        tmp += (unsigned char)((data[i] & 0xff00) >> 8) + (unsigned char)(data[i] & 0x00ff);
     }
     if (2 != _read(fd, (char *)&chk, 2))
         goto a;
     chk = __bswap_16(chk);
-    if (chk != tmp) {
-        fprintf(stderr, "chk: %u, tmp: %u\n", chk, tmp);
-    }
+    if (chk != tmp)
+        goto a;
 
-    p->ver = data[16] >> 8;
-    p->err = data[16] & 0xff;
+    p->ver = (data[16] & 0xff00) >> 8;
+    p->err = data[16] & 0x00ff;
     p->pm1_0_atm = data[0];
     p->pm2_5_atm = data[1];
     p->pm10_atm = data[2];
@@ -395,6 +394,8 @@ void
 pms5003st_print(struct pms5003st *p) {
     printf(
         "PMS5003ST\n"
+        "VER        : %d\n"
+        "ERR        : %d\n"
         "PM1.0(CF=1): %u\n"
         "PM2.5(CF=1): %u\n"
         "PM10 (CF=1): %u\n"
@@ -411,6 +412,7 @@ pms5003st_print(struct pms5003st *p) {
         "TEMPERATURE: %.1f\n"
         "HUMIDITY   : %.1f%%\n"
         "\n",
+	p->ver, p->err,
         p->pm1_0_atm, p->pm2_5_atm, p->pm10_atm, p->pm1_0_std, p->pm2_5_std, p->pm10_std,
         p->g_0_3um, p->g_0_5um, p->g_1_0um, p->g_2_5um, p->g_5_0um, p->g_10um,
         p->hcho, p->temperature, p->humidity);
