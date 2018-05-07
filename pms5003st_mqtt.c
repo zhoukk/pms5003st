@@ -70,7 +70,7 @@ __read(aeEventLoop *el, int fd, void *privdata, int mask) {
         return;
     }
     rc = LIBMQTT_SUCCESS;
-    if (nread <= 0 || LIBMQTT_SUCCESS != (rc = libmqtt__read(io->mqtt, buff, nread))) {
+    if (nread <= 0 || LIBMQTT_SUCCESS != (rc = libmqtt__parse(io->mqtt, buff, nread))) {
         if (rc != LIBMQTT_SUCCESS)
             fprintf(stdout, "libmqtt__read: %s\n", libmqtt__strerror(rc));
         __disconnect(el, io);
