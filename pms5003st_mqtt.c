@@ -347,8 +347,10 @@ main(int argc, char *argv[]) {
     } else {
         pm.port = 1883;
     }
-
     pm.evt = libevent__create(128);
+
+    P = &pm;
+
     rc = __connect();
     if (rc) {
         return 0;
@@ -361,8 +363,6 @@ main(int argc, char *argv[]) {
         return 0;
     }
     pm.mqtt = mqtt;
-
-    P = &pm;
 
     if (__pms_connect()) {
         if (-1 == libevent__set_time(pm.evt, 1000, 0, __pms_retry)) {
