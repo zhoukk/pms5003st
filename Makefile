@@ -1,11 +1,15 @@
-all: pms5003st pms5003st_mqtt
+all: pms5003st_print pms5003st_pub pms5003st_sub
 
-pms5003st: pms5003st.c
+pms5003st_print: pms5003st_print.c
 	gcc -O3 -g -Wall -Wextra -o $@ $<
 
-pms5003st_mqtt: pms5003st_mqtt.c
+pms5003st_pub: pms5003st_pub.c
+	gcc -O3 -g -Wall -Wextra -I../libmqtt -o $@ $^
+
+pms5003st_sub: pms5003st_sub.c http_parser.c
 	gcc -O3 -g -Wall -Wextra -I../libmqtt -o $@ $^
 
 clean:
-	-rm pms5003st
-	-rm pms5003st_mqtt
+	-rm pms5003st_print
+	-rm pms5003st_pub
+	-rm pms5003st_sub

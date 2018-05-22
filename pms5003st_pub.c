@@ -252,7 +252,35 @@ __pms_update(struct libevent *evt, void *ud, int id) {
         return 100;
     }
     len = pms5003st_json(&p, str, 1024);
-    rc = libmqtt__publish(P->mqtt, 0, 0, 0, "libmqtt_pms5003st", str, len);
+    rc = libmqtt__publish(P->mqtt, 0, 0, 0, "pms5003st", str, len);
+    if (rc != LIBMQTT_SUCCESS) {
+        fprintf(stdout, "%s\n", libmqtt__strerror(rc));
+    }
+
+    len = sprintf(str, "pms5003,sensor=sensor1 ver=%d err=%d pm1_0_atm=%d pm2_5_atm=%d pm10_atm=%d"
+            "pm1_0_std=%d pm2_5_std=%d pm10_std=%d g_0_3um=%d g_0_5um=%d g_1_0um=%d g_2_5um=%d g_5_0um=%d g_10um=%d"
+            "hcho=%.3f temperature=%.1f humidity=%.1f", p.ver, p.err, p.pm1_0_atm, p.pm2_5_atm, p.pm10_atm,
+            p.pm1_0_std, p.pm2_5_std, p.pm10_std, p.g_0_3um, p.g_0_5um, p.g_1_0um, p.g_2_5um, p.g_5_0um, p.g_10um,
+            p.hcho, p.temperature, p.humidity);
+    rc = libmqtt__publish(P->mqtt, 0, 0, 0, "pms5003st_influxdb", str, len);
+    if (rc != LIBMQTT_SUCCESS) {
+        fprintf(stdout, "%s\n", libmqtt__strerror(rc));
+    }
+
+    len = sprintf(str, "%.1f", p.temperature);
+    rc = libmqtt__publish(P->mqtt, 0, 0, 0, "pms5003st_temperature", str, len);
+    if (rc != LIBMQTT_SUCCESS) {
+        fprintf(stdout, "%s\n", libmqtt__strerror(rc));
+    }
+
+    len = sprintf(str, "%.1f", p.humidity);
+    rc = libmqtt__publish(P->mqtt, 0, 0, 0, "pms5003st_humidity", str, len);
+    if (rc != LIBMQTT_SUCCESS) {
+        fprintf(stdout, "%s\n", libmqtt__strerror(rc));
+    }
+
+    len = sprintf(str, "%d", p.pm2_5_std);
+    rc = libmqtt__publish(P->mqtt, 0, 0, 0, "pms5003st_pm2_5", str, len);
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stdout, "%s\n", libmqtt__strerror(rc));
     }
@@ -357,8 +385,8 @@ main(int argc, char *argv[]) {
         return 0;
     }
 
-    rc = libmqtt__create(&mqtt, "libmqtt_pms5003st", &pm, &cb);
-    if (!rc) libmqtt__will(mqtt, 1, 2, "libmqtt_pms5003st_state", "exit", 4);
+    rc = libmqtt__create(&mqtt, "pms5003st_pub", &pm, &cb);
+    if (!rc) libmqtt__will(mqtt, 1, 2, "pms5003st_pub_state", "exit", 4);
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stdout, "%s\n", libmqtt__strerror(rc));
         return 0;
