@@ -348,6 +348,7 @@ main(int argc, char *argv[]) {
         pm.port = 1883;
     }
     pm.evt = libevent__create(128);
+    pm.ttyfd = -1;
 
     P = &pm;
 
