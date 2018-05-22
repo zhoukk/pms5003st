@@ -53,5 +53,6 @@ dkms.conf
 
 .exvim
 .exvim..exvim
-pms5003st
-pms5003st_mqtt
+pms5003st_print
+pms5003st_sub
+pms5003st_pub

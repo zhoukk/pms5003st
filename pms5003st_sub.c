@@ -297,9 +297,8 @@ __publish(struct libmqtt *mqtt, void *ud, uint16_t id, const char *topic, enum m
     (void)qos;
     (void)retain;
 
-    printf("%.*s\n", length, payload);
-
     int fd;
+    int rc;
     struct libhttp_url *url;
     struct libhttp_request *req;
     struct libhttp_buf body;
@@ -309,23 +308,27 @@ __publish(struct libmqtt *mqtt, void *ud, uint16_t id, const char *topic, enum m
     body.size = length;
 
     req = request_api.create();
-    request_api.set_method(req, "POST");
-    request_api.set_body(req, body);
     url = request_api.url(req);
 
     url_api.parse(url, P->db);
 
+    request_api.set_method(req, "POST");
+    request_api.set_header(req, "Host", url_api.host(url));
+    request_api.set_body(req, body);
+    
     fd = __tcp_connect(url_api.host(url), url_api.port(url));
     if (-1 == fd) {
         fprintf(stderr, "__tcp_connect: %s\n", strerror(errno));
         return;
     }
-    
-    buf = request_api.build(req);
 
-    printf("%.*s\n", buf.size, buf.data);
-    
-    write(fd, buf.data, buf.size);
+    buf = request_api.build(req);
+    rc = write(fd, buf.data, buf.size);
+    free(buf.data);
+    if (rc != buf.size) {
+        fprintf(stderr, "http write: %s\n", strerror(errno));
+        return;
+    }
 }
 
 int

@@ -257,9 +257,9 @@ __pms_update(struct libevent *evt, void *ud, int id) {
         fprintf(stdout, "%s\n", libmqtt__strerror(rc));
     }
 
-    len = sprintf(str, "pms5003,sensor=sensor1 ver=%d err=%d pm1_0_atm=%d pm2_5_atm=%d pm10_atm=%d"
-            "pm1_0_std=%d pm2_5_std=%d pm10_std=%d g_0_3um=%d g_0_5um=%d g_1_0um=%d g_2_5um=%d g_5_0um=%d g_10um=%d"
-            "hcho=%.3f temperature=%.1f humidity=%.1f", p.ver, p.err, p.pm1_0_atm, p.pm2_5_atm, p.pm10_atm,
+    len = sprintf(str, "pms5003st,sensor=sensor1,ver=%d,err=%d pm1_0_atm=%d,pm2_5_atm=%d,pm10_atm=%d,"
+            "pm1_0_std=%d,pm2_5_std=%d,pm10_std=%d,g_0_3um=%d,g_0_5um=%d,g_1_0um=%d,g_2_5um=%d,g_5_0um=%d,g_10um=%d,"
+            "hcho=%.3f,temperature=%.1f,humidity=%.1f", p.ver, p.err, p.pm1_0_atm, p.pm2_5_atm, p.pm10_atm,
             p.pm1_0_std, p.pm2_5_std, p.pm10_std, p.g_0_3um, p.g_0_5um, p.g_1_0um, p.g_2_5um, p.g_5_0um, p.g_10um,
             p.hcho, p.temperature, p.humidity);
     rc = libmqtt__publish(P->mqtt, 0, 0, 0, "pms5003st_influxdb", str, len);
