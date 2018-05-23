@@ -158,49 +158,47 @@ __set_tcp_keepalive(int fd, int keepalive) {
 }
 
 static int
-__set_tcp_reuseaddr(int fd, int reuse) {
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
-        return -1;
-    }
-    return 0;
-}
-
-static int
 __tcp_connect(const char *addr, int port) {
-    int s = -1, rv;
+    int fd, rc;
     char portstr[6];
     struct addrinfo hints, *servinfo, *p;
 
+    fd = -1;
     snprintf(portstr, sizeof(portstr), "%d", port);
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((rv = getaddrinfo(addr, portstr, &hints, &servinfo)) != 0) {
+    if ((rc = getaddrinfo(addr, portstr, &hints, &servinfo)) != 0) {
+        fprintf("getaddrinfo: %s\n", gai_strerror(rc));
         return -1;
     }
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-        if ((s = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+    for (p = servinfo; p; p = p->ai_next) {
+        int reuse = 1;
+
+        if ((fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;
-        if (__set_tcp_reuseaddr(s, 1) == -1)
+        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
+            fprintf("setsockopt: %s\n", strerror(errno));
             goto err;
-        if (connect(s, p->ai_addr, p->ai_addrlen) == -1) {
-            close(s);
-            s = -1;
+        }
+        if (connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(fd);
+            fd = -1;
             continue;
         }
         goto end;
     }
 
 err:
-    if (s != -1) {
-        close(s);
-        s = -1;
+    if (fd != -1) {
+        close(fd);
+        fd = -1;
     }
 
 end:
     freeaddrinfo(servinfo);
-    return s;
+    return fd;
 }
 
 static int
