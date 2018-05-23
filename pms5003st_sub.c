@@ -44,6 +44,8 @@
 
 struct pms5003st_mqtt {
     int iofd;
+    int httpfd;
+    struct libhttp_request *req;
     int timer_id;
     char db[1024];
     char host[1024];
@@ -270,6 +272,7 @@ __pms_retry(struct libevent *evt, void *ud, int id) {
 static void
 __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_crc return_code) {
     int rc;
+    struct libhttp_url *url;
     const char *topics[] = {"pms5003st_influxdb"};
     enum mqtt_qos qoss[] = {MQTT_QOS_1};
     (void)ack_flags;
@@ -284,6 +287,16 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_crc return_co
     if (rc != LIBMQTT_SUCCESS) {
         fprintf(stderr, "%s\n", libmqtt__strerror(rc));
     }
+
+    P->req = request_api.create();
+    url = request_api.url(P->req);
+    url_api.parse(url, P->db);
+    request_api.set_method(P->req, "POST");
+    request_api.set_header(P->req, "Host", url_api.host(url));
+    P->httpfd = __tcp_connect(url_api.host(url), url_api.port(url));
+    if (-1 == P->httpfd) {
+        fprintf(stderr, "__tcp_connect: %s\n", strerror(errno));
+    }
 }
 
 static void
@@ -295,33 +308,17 @@ __publish(struct libmqtt *mqtt, void *ud, uint16_t id, const char *topic, enum m
     (void)qos;
     (void)retain;
 
-    int fd;
     int rc;
-    struct libhttp_url *url;
-    struct libhttp_request *req;
     struct libhttp_buf body;
     struct libhttp_buf buf;
 
     body.data = (char *)payload;
     body.size = length;
 
-    req = request_api.create();
-    url = request_api.url(req);
+    request_api.set_body(P->req, body);
 
-    url_api.parse(url, P->db);
-
-    request_api.set_method(req, "POST");
-    request_api.set_header(req, "Host", url_api.host(url));
-    request_api.set_body(req, body);
-    
-    fd = __tcp_connect(url_api.host(url), url_api.port(url));
-    if (-1 == fd) {
-        fprintf(stderr, "__tcp_connect: %s\n", strerror(errno));
-        return;
-    }
-
-    buf = request_api.build(req);
-    rc = write(fd, buf.data, buf.size);
+    buf = request_api.build(P->req);
+    rc = write(P->httpfd, buf.data, buf.size);
     free(buf.data);
     if (rc != buf.size) {
         fprintf(stderr, "http write: %s\n", strerror(errno));

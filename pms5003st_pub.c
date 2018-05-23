@@ -153,14 +153,6 @@ __set_tcp_keepalive(int fd, int keepalive) {
 }
 
 static int
-__set_tcp_reuseaddr(int fd, int reuse) {
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
-        return -1;
-    }
-    return 0;
-}
-
-static int
 __tcp_connect(const char *addr, int port) {
     int fd, rc;
     char portstr[6];
