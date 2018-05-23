@@ -170,7 +170,7 @@ __tcp_connect(const char *addr, int port) {
     hints.ai_socktype = SOCK_STREAM;
 
     if ((rc = getaddrinfo(addr, portstr, &hints, &servinfo)) != 0) {
-        fprintf("getaddrinfo: %s\n", gai_strerror(rc));
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rc));
         return -1;
     }
     for (p = servinfo; p; p = p->ai_next) {
@@ -179,7 +179,7 @@ __tcp_connect(const char *addr, int port) {
         if ((fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;
         if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
-            fprintf("setsockopt: %s\n", strerror(errno));
+            fprintf(stderr, "setsockopt: %s\n", strerror(errno));
             goto err;
         }
         if (connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
