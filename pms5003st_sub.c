@@ -296,7 +296,11 @@ __connack(struct libmqtt *mqtt, void *ud, int ack_flags, enum mqtt_crc return_co
     P->httpfd = __tcp_connect(url_api.host(url), url_api.port(url));
     if (-1 == P->httpfd) {
         fprintf(stderr, "__tcp_connect: %s\n", strerror(errno));
+        return;
     }
+    __set_non_block(P->httpfd, 1);
+    __set_tcp_nodelay(P->httpfd, 1);
+    __set_tcp_keepalive(P->httpfd, 1);
 }
 
 static void
@@ -321,8 +325,19 @@ __publish(struct libmqtt *mqtt, void *ud, uint16_t id, const char *topic, enum m
     rc = write(P->httpfd, buf.data, buf.size);
     free(buf.data);
     if (rc != buf.size) {
+        struct libhttp_url *url;
+
         fprintf(stderr, "http write: %s\n", strerror(errno));
-        return;
+        close(P->httpfd);
+        url = request_api.url(P->req);
+        P->httpfd = __tcp_connect(url_api.host(url), url_api.port(url));
+        if (-1 == P->httpfd) {
+            fprintf(stderr, "__tcp_connect: %s\n", strerror(errno));
+            return;
+        }
+        __set_non_block(P->httpfd, 1);
+        __set_tcp_nodelay(P->httpfd, 1);
+        __set_tcp_keepalive(P->httpfd, 1);
     }
 }
 
