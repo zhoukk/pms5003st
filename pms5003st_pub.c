@@ -57,6 +57,7 @@ static void *pms5330st_runtime(void *arg) {
       message.n = pms5003st_json(&p, str, 1024);
       message.s = str;
       mqtt_cli_publish(rarg->m, 0, "pms5003st", MQTT_QOS_0, &message, 0);
+      sleep(3);
     }
     uart_close(uart_fd);
     sleep(1);
