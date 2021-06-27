@@ -79,8 +79,6 @@ extern PMS5003ST_API void uart_close(int fd);
 
 extern PMS5003ST_API int uart_write(int fd, const char *data, size_t len);
 
-extern PMS5003ST_API int uart_can_read(int fd, int timeout);
-
 extern PMS5003ST_API int uart_read(int fd, char *data, size_t len);
 
 extern PMS5003ST_API int uart_set(int fd, int baude, int c_flow, int bits, char parity, int stop);
@@ -162,22 +160,6 @@ uart_read(int fd, char *data, size_t len) {
         ptr += nread;
     }
     return len - nleft;
-}
-
-int
-uart_can_read(int fd, int timeout) {
-    int ret;
-    fd_set rfds;
-    struct timeval time;
-
-    FD_ZERO(&rfds);
-    FD_SET(fd, &rfds);
-
-    time.tv_sec = timeout;
-    time.tv_usec = 0;
-
-    ret = select(fd + 1, &rfds, 0, 0, &time);
-    return ret > 0;
 }
 
 int
@@ -298,14 +280,6 @@ uart_set(int fd, int baude, int c_flow, int bits, char parity, int stop) {
     return 0;
 }
 
-static int
-_read(int fd, char *data, int len) {
-    while (uart_can_read(fd, 15)) {
-        return uart_read(fd, data, len);
-    }
-    return 0;
-}
-
 int
 pms5003st_read(int fd, struct pms5003st *p) {
     char ch;
@@ -316,27 +290,27 @@ pms5003st_read(int fd, struct pms5003st *p) {
     unsigned short data[17];
 
 a:
-    if (1 != _read(fd, &ch, 1))
+    if (1 != uart_read(fd, &ch, 1))
         goto a;
     if (ch != 0x42)
         goto a;
-    if (1 != _read(fd, &ch, 1))
+    if (1 != uart_read(fd, &ch, 1))
         goto a;
     if (ch != 0x4d)
         goto a;
-    if (2 != _read(fd, (char *)&len, 2))
+    if (2 != uart_read(fd, (char *)&len, 2))
         goto a;
     len = __bswap_16(len);
     if (len != 2 * 17 + 2)
         goto a;
     tmp = 0x42 + 0x4d + (unsigned char)((len & 0xff00) >> 8) + (unsigned char)(len & 0x00ff);
-    if (34 != _read(fd, (char *)data, 34))
+    if (34 != uart_read(fd, (char *)data, 34))
         goto a;
     for (i = 0; i < 17; i++) {
         data[i] = __bswap_16(data[i]);
         tmp += (unsigned char)((data[i] & 0xff00) >> 8) + (unsigned char)(data[i] & 0x00ff);
     }
-    if (2 != _read(fd, (char *)&chk, 2))
+    if (2 != uart_read(fd, (char *)&chk, 2))
         goto a;
     chk = __bswap_16(chk);
     if (chk != tmp)
