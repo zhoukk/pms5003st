@@ -61,6 +61,7 @@ static void *pms5330st_runtime(void *arg) {
     uart_close(uart_fd);
     sleep(1);
   }
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
