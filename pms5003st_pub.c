@@ -66,9 +66,6 @@ static void *pms5330st_runtime(void *arg) {
 }
 
 int main(int argc, char *argv[]) {
-  mqtt_cli_t *m;
-  void *net;
-
   if (argc < 2) {
     printf("usage: %s host dev\n", argv[0]);
     return EXIT_FAILURE;
@@ -98,14 +95,7 @@ int main(int argc, char *argv[]) {
       .ud = 0,
   };
 
-  net = linux_tcp_connect(argv[1], MQTT_TCP_PORT);
-  if (!net) {
-    fprintf(stderr, "mqtt broker connect error\n");
-    return EXIT_FAILURE;
-  }
-
-  m = mqtt_cli_create(&config);
-  mqtt_cli_connect(m);
+  mqtt_cli_t *m = mqtt_cli_create(&config);
 
   struct pms5003st_runtime_arg arg = {
       .devpath = argv[2],
@@ -114,29 +104,41 @@ int main(int argc, char *argv[]) {
 
   pthread_t tid;
   if (pthread_create(&tid, 0, pms5330st_runtime, &arg)) {
-    fprintf(stderr, "fatal: pthread_create(): %s\n", strerror(errno));
+    fprintf(stderr, "pthread_create(): %s\n", strerror(errno));
     return EXIT_FAILURE;
   }
 
   while (1) {
-    mqtt_str_t outgoing, incoming;
-    uint64_t t1, t2;
+    void *net = linux_tcp_connect(argv[1], MQTT_TCP_PORT);
+    if (!net) {
+      fprintf(stderr, "linux_tcp_connect(): %s\n", strerror(errno));
+      sleep(1);
+      continue;
+    }
+    mqtt_cli_connect(m);
 
-    t1 = linux_time_now();
-    mqtt_cli_outgoing(m, &outgoing);
-    if (linux_tcp_transfer(net, &outgoing, &incoming)) {
-      break;
+    while (1) {
+      mqtt_str_t outgoing, incoming;
+      uint64_t t1, t2;
+
+      t1 = linux_time_now();
+      mqtt_cli_outgoing(m, &outgoing);
+      if (linux_tcp_transfer(net, &outgoing, &incoming)) {
+        break;
+      }
+      if (mqtt_cli_incoming(m, &incoming)) {
+        break;
+      }
+      t2 = linux_time_now();
+      if (mqtt_cli_elapsed(m, t2 - t1)) {
+        break;
+      }
     }
-    if (mqtt_cli_incoming(m, &incoming)) {
-      break;
-    }
-    t2 = linux_time_now();
-    if (mqtt_cli_elapsed(m, t2 - t1)) {
-      break;
-    }
+
+    linux_tcp_close(net);
   }
 
   mqtt_cli_destroy(m);
-  linux_tcp_close(net);
+
   return 0;
 }
