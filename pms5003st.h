@@ -170,26 +170,29 @@ uart_set(int fd, int baude, int c_flow, int bits, char parity, int stop) {
         return -1;
     }
 
+    int speed;
     switch (baude) {
     case 4800:
-        cfsetispeed(&options, B4800);
-        cfsetospeed(&options, B4800);
+        speed = B4800;
         break;
     case 9600:
-        cfsetispeed(&options, B9600);
-        cfsetospeed(&options, B9600);
+        speed = B9600;
         break;
     case 19200:
-        cfsetispeed(&options, B19200);
-        cfsetospeed(&options, B19200);
+        speed = B19200;
         break;
     case 38400:
-        cfsetispeed(&options, B38400);
-        cfsetospeed(&options, B38400);
+        speed = B38400;
+        break;
+    case 115200:
+        speed = B115200;
         break;
     default:
         return -1;
     }
+
+    cfsetispeed(&options, speed);
+    cfsetospeed(&options, speed);
 
     options.c_cflag |= (CLOCAL | CREAD);
 
